@@ -47,7 +47,7 @@ api/
 ```bash
 git clone https://github.com/fenotesb/helping-hands-platform
 cd helping-hands-platform
-
+```
 2. Create a virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
@@ -209,10 +209,3 @@ Built by Fenote Berhane
 For interview prep, serverless learning, and contributions to Helping Hands.
 
 ⭐ If this repo helps you, consider starring it on GitHub!
-
----
-
-# Want a shorter “tech recruiter version” of the README too?
-Some recruiters like a compact version — I can generate a **condensed README** as well.
-
-Just say **“make a short version too”**.
