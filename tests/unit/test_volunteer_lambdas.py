@@ -2,7 +2,6 @@ import json
 import os
 
 import boto3
-import pytest
 from moto import mock_aws
 
 # Import your lambda handlers
@@ -14,19 +13,11 @@ TABLE_NAME = "HelpingHands_Volunteers_Test"
 
 
 def setup_dynamodb():
-    """
-    Create a fake DynamoDB table in Moto that matches the schema
-    your Lambda expects.
-    """
     dynamo = boto3.resource("dynamodb", region_name="us-east-1")
     table = dynamo.create_table(
         TableName=TABLE_NAME,
-        KeySchema=[
-            {"AttributeName": "volunteer_id", "KeyType": "HASH"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": "volunteer_id", "AttributeType": "S"},
-        ],
+        KeySchema=[{"AttributeName": "id", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "id", "AttributeType": "S"}],
         BillingMode="PAY_PER_REQUEST",
     )
     table.meta.client.get_waiter("table_exists").wait(TableName=TABLE_NAME)
@@ -51,21 +42,24 @@ def test_create_volunteer_success(monkeypatch):
     }
     event = {"body": json.dumps(payload)}
 
-    # Act: call the lambda handler directly
+    # Act
     resp = create_volunteer(event, None)
     assert resp["statusCode"] == 201
 
     body = json.loads(resp["body"])
-    assert "volunteer_id" in body
-    volunteer_id = body["volunteer_id"]
+    assert "id" in body
+    volunteer_id = body["id"]
+    assert volunteer_id
 
     # Now test that get_volunteer can retrieve it
-    get_event = {"pathParameters": {"volunteer_id": volunteer_id}}
+    get_event = {"pathParameters": {"id": volunteer_id}}
     get_resp = get_volunteer(get_event, None)
     assert get_resp["statusCode"] == 200
 
     stored = json.loads(get_resp["body"])
+
     # Verify key fields persisted correctly
+    assert stored["id"] == volunteer_id
     assert stored["name"] == payload["name"]
     assert stored["email"] == payload["email"]
     assert stored["city"] == payload["city"]
@@ -74,7 +68,10 @@ def test_create_volunteer_success(monkeypatch):
     assert stored["availability"] == payload["availability"]
     assert stored["preferred_contact_method"] == payload["preferred_contact_method"]
     assert stored["is_active"] is True
-    assert "created_at" in stored  # simple sanity check
+
+    # Timestamp sanity check (matches create_volunteer_lambda)
+    assert "createdAt" in stored
+    assert stored["createdAt"]
 
 
 @mock_aws
@@ -100,10 +97,10 @@ def test_list_volunteers(monkeypatch):
     monkeypatch.setenv("VOLUNTEER_TABLE", TABLE_NAME)
     table = setup_dynamodb()
 
-    # Pre-insert a couple of volunteer records
+    # Pre-insert a couple of volunteer records (must include "id")
     table.put_item(
         Item={
-            "volunteer_id": "VOL1",
+            "id": "VOL1",
             "name": "Alice",
             "email": "alice@example.com",
             "city": "Queens",
@@ -111,7 +108,7 @@ def test_list_volunteers(monkeypatch):
     )
     table.put_item(
         Item={
-            "volunteer_id": "VOL2",
+            "id": "VOL2",
             "name": "Bob",
             "email": "bob@example.com",
             "city": "Brooklyn",
@@ -138,7 +135,7 @@ def test_get_volunteer_not_found(monkeypatch):
     setup_dynamodb()
 
     # No items inserted on purpose
-    get_event = {"pathParameters": {"volunteer_id": "NON_EXISTENT"}}
+    get_event = {"pathParameters": {"id": "NON_EXISTENT"}}
     resp = get_volunteer(get_event, None)
 
     assert resp["statusCode"] == 404
@@ -154,10 +151,10 @@ def test_get_volunteer_missing_id(monkeypatch):
     monkeypatch.setenv("VOLUNTEER_TABLE", TABLE_NAME)
     setup_dynamodb()
 
-    # pathParameters is missing volunteer_id
+    # pathParameters is missing id
     get_event = {"pathParameters": {}}
     resp = get_volunteer(get_event, None)
 
     assert resp["statusCode"] == 400
     body = json.loads(resp["body"])
-    assert "volunteer_id is required" in body.get("message", "")
+    assert "id is required" in body.get("message", "")

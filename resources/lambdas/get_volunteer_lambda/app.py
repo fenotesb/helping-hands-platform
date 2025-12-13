@@ -1,29 +1,28 @@
 import json
 import os
-
 import boto3
 
 dynamo = boto3.resource("dynamodb")
 
 
 def get_table():
-    table_name = os.environ.get("VOLUNTEER_TABLE", "HelpingHands_Volunteers")
+    table_name = os.environ.get("VOLUNTEER_TABLE", "handsin-volunteers-dev")
     return dynamo.Table(table_name)
 
 
 def lambda_handler(event, context):
     table = get_table()
 
-    path_params = event.get("pathParameters") or {}
-    volunteer_id = path_params.get("volunteer_id")
+    params = event.get("pathParameters") or {}
+    volunteer_id = params.get("id") or params.get("volunteer_id")  # support both
 
     if not volunteer_id:
         return {
             "statusCode": 400,
-            "body": json.dumps({"message": "volunteer_id is required in path"})
+            "body": json.dumps({"message": "id is required"})
         }
 
-    resp = table.get_item(Key={"volunteer_id": volunteer_id})
+    resp = table.get_item(Key={"id": volunteer_id})
     item = resp.get("Item")
 
     if not item:

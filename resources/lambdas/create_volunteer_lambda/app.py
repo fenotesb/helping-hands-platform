@@ -12,10 +12,10 @@ def get_table():
     """
     Resolve the DynamoDB table name at runtime.
 
-    In production: VOLUNTEER_TABLE env var set to real table name.
-    In tests: VOLUNTEER_TABLE is set to a Moto table name.
+    In production: VOLUNTEER_TABLE env var set by CloudFormation/SAM.
+    In tests: VOLUNTEER_TABLE set by Moto fixture.
     """
-    table_name = os.environ.get("VOLUNTEER_TABLE", "HelpingHands_Volunteers")
+    table_name = os.environ.get("VOLUNTEER_TABLE", "handsin-volunteers-dev")
     return dynamo.Table(table_name)
 
 
@@ -30,9 +30,11 @@ def lambda_handler(event, context):
             "body": json.dumps({"message": "name and email are required"})
         }
 
+    # ✅ One canonical id (matches DynamoDB partition key "id")
     volunteer_id = str(uuid.uuid4())
+
     item = {
-        "volunteer_id": volunteer_id,
+        "id": volunteer_id,  # ✅ REQUIRED key for DynamoDB table
         "name": body["name"],
         "email": body["email"],
         "phone": body.get("phone"),
@@ -42,12 +44,12 @@ def lambda_handler(event, context):
         "availability": body.get("availability", ""),
         "preferred_contact_method": body.get("preferred_contact_method", "email"),
         "is_active": True,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "createdAt": datetime.now(timezone.utc).isoformat(),  # keep camelCase consistent
     }
 
     table.put_item(Item=item)
 
     return {
         "statusCode": 201,
-        "body": json.dumps({"volunteer_id": volunteer_id})
+        "body": json.dumps({"id": volunteer_id})
     }
