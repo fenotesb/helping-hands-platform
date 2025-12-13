@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Hands-In backend Lambdas
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 128
+    Architectures:
+      - x86_64
+
+Resources:
+
+  PayPalCreateOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-create-paypal-order
+      Handler: app.lambda_handler
+      CodeUri: ../../resources/lambdas/create_paypal_order_lambda/
+      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
+      Environment:
+        Variables:
+          PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      Events:
+        CreateOrderApi:
+          Type: HttpApi
+          Properties:
+            Path: /donations
+            Method: POST
