@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Hands-In backend (PayPal donations + Volunteers)
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 128
+    Architectures:
+      - x86_64
+
+Resources:
+
+  # -----------------------
+  # Donations (PayPal)
+  # -----------------------
+  PayPalCreateOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-create-paypal-order
+      Handler: app.lambda_handler
+      CodeUri: ../resources/lambdas/create_paypal_order_lambda/
+      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
+      Environment:
+        Variables:
+          PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      Events:
+        DonationsApi:
+          Type: HttpApi
+          Properties:
+            Path: /donations
+            Method: POST
+
+  # -----------------------
+  # Volunteers (placeholders)
+  # -----------------------
+  CreateVolunteerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-create-volunteer
+      Handler: app.lambda_handler
+      CodeUri: ../resources/lambdas/create_volunteer_lambda/
+      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
+      Environment:
+        Variables:
+          VOLUNTEER_TABLE: handsin-volunteers-dev
+      Events:
+        VolunteersCreateApi:
+          Type: HttpApi
+          Properties:
+            Path: /volunteers
+            Method: POST
+
+  ListVolunteersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-list-volunteers
+      Handler: app.lambda_handler
+      CodeUri: ../resources/lambdas/list_volunteers_lambda/
+      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
+      Environment:
+        Variables:
+          VOLUNTEER_TABLE: handsin-volunteers-dev
+      Events:
+        VolunteersListApi:
+          Type: HttpApi
+          Properties:
+            Path: /volunteers
+            Method: GET
+
+Outputs:
+  HttpApiUrl:
+    Description: Base URL for Hands-In HTTP API
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
