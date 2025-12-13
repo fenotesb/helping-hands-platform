@@ -9,8 +9,24 @@ Globals:
     MemorySize: 128
     Architectures:
       - x86_64
+    Tracing: PassThrough
 
 Resources:
+
+  # -----------------------
+  # Data Store
+  # -----------------------
+  VolunteersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: handsin-volunteers-dev
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
 
   # -----------------------
   # Donations (PayPal)
@@ -21,7 +37,6 @@ Resources:
       FunctionName: handsin-create-paypal-order
       Handler: app.lambda_handler
       CodeUri: ../resources/lambdas/create_paypal_order_lambda/
-      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
       Environment:
         Variables:
           PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
@@ -32,8 +47,24 @@ Resources:
             Path: /donations
             Method: POST
 
+  PayPalWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-paypal-webhook
+      Handler: app.lambda_handler
+      CodeUri: ../resources/lambdas/paypal_webhook_lambda/
+      Environment:
+        Variables:
+          PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      Events:
+        PayPalWebhookApi:
+          Type: HttpApi
+          Properties:
+            Path: /paypal/webhook
+            Method: POST
+
   # -----------------------
-  # Volunteers (placeholders)
+  # Volunteers (DynamoDB)
   # -----------------------
   CreateVolunteerFunction:
     Type: AWS::Serverless::Function
@@ -41,10 +72,12 @@ Resources:
       FunctionName: handsin-create-volunteer
       Handler: app.lambda_handler
       CodeUri: ../resources/lambdas/create_volunteer_lambda/
-      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
       Environment:
         Variables:
-          VOLUNTEER_TABLE: handsin-volunteers-dev
+          VOLUNTEER_TABLE: !Ref VolunteersTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VolunteersTable
       Events:
         VolunteersCreateApi:
           Type: HttpApi
@@ -58,15 +91,36 @@ Resources:
       FunctionName: handsin-list-volunteers
       Handler: app.lambda_handler
       CodeUri: ../resources/lambdas/list_volunteers_lambda/
-      Role: arn:aws:iam::676313371278:role/HandsIn-LambdaExecutionRole
       Environment:
         Variables:
-          VOLUNTEER_TABLE: handsin-volunteers-dev
+          VOLUNTEER_TABLE: !Ref VolunteersTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref VolunteersTable
       Events:
         VolunteersListApi:
           Type: HttpApi
           Properties:
             Path: /volunteers
+            Method: GET
+
+  GetVolunteerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-get-volunteer
+      Handler: app.lambda_handler
+      CodeUri: ../resources/lambdas/get_volunteer_lambda/
+      Environment:
+        Variables:
+          VOLUNTEER_TABLE: !Ref VolunteersTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref VolunteersTable
+      Events:
+        VolunteersGetApi:
+          Type: HttpApi
+          Properties:
+            Path: /volunteers/{id}
             Method: GET
 
 Outputs:
