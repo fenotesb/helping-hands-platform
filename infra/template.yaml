@@ -12,6 +12,24 @@ Globals:
     Tracing: PassThrough
 
 Resources:
+  PayPalCaptureOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: handsin-capture-paypal-order
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      CodeUri: ../resources/lambdas/capture_paypal_order_lambda/
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      Events:
+        DonationsCaptureApi:
+          Type: HttpApi
+          Properties:
+            Path: /donations/capture
+            Method: POST
 
   # -----------------------
   # Data Store
